@@ -1,7 +1,7 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -20,7 +20,11 @@
     "prisma": "^5.21.1",
     "sqlite3": "^5.1.7",
     "stripe": "^17.2.1",
+    "telegraf": "^4.16.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.3"
+  },
+  "devDependencies": {
+    "@types/react-native": "^0.72.8"
   }
 }

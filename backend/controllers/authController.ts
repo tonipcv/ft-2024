@@ -7,10 +7,11 @@ import config from '../config/config';
 
 const prisma = new PrismaClient();
 
-// Configuração do transporter do nodemailer
+// Configuração do transporter do nodemailer usando Mailtrap
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
-  port: parseInt(process.env.EMAIL_PORT || '587'),
+  port: parseInt(process.env.EMAIL_PORT || '465'),
+  secure: true, // use TLS
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
@@ -210,7 +211,47 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
 
 // Verificar status da autenticação
 export const checkAuth = async (req: Request, res: Response): Promise<void> => {
-  res.status(200).json({ isAuthenticated: true, user: req.user });
+  if (req.user) {
+    res.status(200).json({ isAuthenticated: true, user: req.user });
+  } else {
+    res.status(401).json({ isAuthenticated: false, user: null });
+  }
+};
+
+export const requestPasswordReset = async (req: Request, res: Response): Promise<void> => {
+  const { email } = req.body;
+
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      res.status(404).json({ error: 'Usuário não encontrado' });
+      return;
+    }
+
+    // Gerar um código de redefinição aleatório
+    const resetCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+    // Salvar o código de redefinição no banco de dados
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { 
+        resetCode,
+        resetCodeExpires: new Date(Date.now() + 3600000) // Expira em 1 hora
+      },
+    });
+
+    // Enviar e-mail com o código de redefinição
+    await sendEmail(
+      user.email,
+      'Redefinição de Senha',
+      `Seu código de redefinição de senha é: ${resetCode}`
+    );
+
+    res.status(200).json({ message: 'E-mail de redefinição de senha enviado' });
+  } catch (error) {
+    console.error('Erro ao solicitar redefinição de senha:', error);
+    res.status(500).json({ error: 'Erro ao processar a solicitação de redefinição de senha' });
+  }
 };
 
 export default {
@@ -223,5 +264,6 @@ export default {
   updateProfile,
   getUserInfo,
   logout,
-  checkAuth
+  checkAuth,
+  requestPasswordReset
 };

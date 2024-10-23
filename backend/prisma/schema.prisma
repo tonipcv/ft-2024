@@ -4,26 +4,40 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db" // Nome do banco de dados
+  provider = "postgresql"
+  url      = "postgres://postgres:6eeda6196ddb133f9e5e@dpbdp1.easypanel.host:5432/lys" // Nome do banco de dados
 }
 
 // Modelo de Usuário com Plano Vinculado
 model User {
-  id             Int      @id @default(autoincrement())
-  email          String   @unique
-  password       String
-  name           String?
-  plan           String
-  paymentStatus  String
-  resetCode      String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id               Int           @id @default(autoincrement())
+  email            String        @unique
+  password         String
+  name             String?
+  plan             String
+  paymentStatus    String
+  resetCode        String?
+  resetCodeExpires DateTime?     // Adicione esta linha
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  subscription     Subscription?
 }
 
-// Modelo de Sinais de Trade
-model TradeSignal {
+// Modelo de Assinatura
+model Subscription {
+  id                       Int      @id @default(autoincrement())
+  userId                   Int      @unique
+  user                     User     @relation(fields: [userId], references: [id])
+  stripeCustomerId         String
+  stripeSubscriptionId     String
+  stripeSubscriptionItemId String
+  stripePriceId            String
+  status                   String
+  // Add any other relevant fields
+}
+
+model TelegramMessage {
   id        Int      @id @default(autoincrement())
-  message   String   // A mensagem completa do sinal
+  content   String
   createdAt DateTime @default(now())
 }

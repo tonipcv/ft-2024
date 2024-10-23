@@ -1,24 +1,21 @@
-import { Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from '../types/types';
+import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import config from '../config/config';
 
-// Middleware para verificar o token JWT e autenticar o usuário
-export const requireAuth = (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+export const authenticateJWT = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader) {
-    res.status(401).json({ error: 'Token de autenticação não fornecido' });
-    return;
-  }
+  if (authHeader) {
+    const token = authHeader.split(' ')[1];
 
-  const token = authHeader.split(' ')[1];
+    jwt.verify(token, process.env.JWT_SECRET as string, (err, user) => {
+      if (err) {
+        return res.sendStatus(403);
+      }
 
-  try {
-    const decoded = jwt.verify(token, config.jwtSecret) as { userId: string };
-    req.userId = decoded.userId;
-    next();
-  } catch (error) {
-    res.status(401).json({ error: 'Token inválido' });
+      req.user = user;
+      next();
+    });
+  } else {
+    res.sendStatus(401);
   }
 };

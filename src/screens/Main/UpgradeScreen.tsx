@@ -3,9 +3,10 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'rea
 import { useNavigation } from '@react-navigation/native';
 import { createCheckoutSession } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { UpgradeScreenNavigationProp } from '../../types/navigation';
 
 const UpgradeScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<UpgradeScreenNavigationProp>();
   const { user, updateUserPlan } = useAuth();
 
   const handleUpgrade = async () => {
@@ -29,7 +30,7 @@ const UpgradeScreen: React.FC = () => {
             text: "Sim", 
             onPress: async () => {
               await updateUserPlan('PAID');
-              navigation.navigate('Dashboard' as never);
+              navigation.navigate('Dashboard');
             }
           }
         ]

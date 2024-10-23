@@ -1,10 +1,11 @@
 import express from 'express';
-import { receiveTelegramSignal, getTradeSignals } from '../controllers/tradeController';
-import { authenticateToken } from '../middlewares/auth';
+import { authenticateJWT } from '../middlewares/authMiddleware';
+import { createMessage, getMessages, listMessages } from '../controllers/tradeController';
 
 const router = express.Router();
 
-router.post('/telegram-webhook', receiveTelegramSignal);
-router.get('/trade-signals', authenticateToken, getTradeSignals);
+router.post('/message', authenticateJWT, createMessage);
+router.get('/messages', authenticateJWT, getMessages);
+router.get('/messages/list', authenticateJWT, listMessages);
 
 export default router;

@@ -9,9 +9,10 @@ import {
   updateProfile,
   getUserInfo,
   logout,
-  checkAuth
+  checkAuth,
+  requestPasswordReset
 } from '../controllers/authController';
-import { authenticateToken } from '../middlewares/auth';
+import { authenticateJWT } from '../middlewares/authMiddleware';
 
 const router = express.Router();
 
@@ -55,24 +56,30 @@ router.get('/success', successConfirmation);
  * @route   PUT /auth/update-profile
  * @desc    Atualizar perfil do usuário
  */
-router.put('/update-profile', authenticateToken, updateProfile);
+router.put('/update-profile', authenticateJWT, updateProfile);
 
 /**
  * @route   GET /auth/user-info
  * @desc    Obter informações do usuário
  */
-router.get('/user-info/:userId', authenticateToken, getUserInfo);
+router.get('/user-info/:userId', authenticateJWT, getUserInfo);
 
 /**
  * @route   POST /auth/logout
  * @desc    Realizar logout
  */
-router.post('/logout', authenticateToken, logout);
+router.post('/logout', authenticateJWT, logout);
 
 /**
  * @route   GET /auth/check-auth
  * @desc    Verificar status da autenticação
  */
-router.get('/check-auth', authenticateToken, checkAuth);
+router.get('/check-auth', authenticateJWT, checkAuth);
+
+/**
+ * @route   POST /auth/request-password-reset
+ * @desc    Solicitar redefinição de senha
+ */
+router.post('/request-password-reset', requestPasswordReset);
 
 export default router;
