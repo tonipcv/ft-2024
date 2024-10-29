@@ -1,78 +1,128 @@
-import React, { createContext, useState, useContext, ReactNode } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import api from '../services/api';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useSupabase } from './SupabaseProvider';
+import { User, AuthError } from '@supabase/supabase-js';
+import { Alert } from 'react-native';
 
-interface User {
-  id: number;
-  email: string;
-  plan: 'FREE' | 'PAID';  // Adicionando a propriedade 'plan'
-  // Adicione outros campos do usuário conforme necessário
+interface AuthState {
+  user: User | null;
+  isLoading: boolean;
 }
 
-interface AuthContextData {
-  user: User | null;
-  login: (email: string, password: string) => Promise<{ token: string }>;
-  logout: () => Promise<void>;
-  register: (email: string, password: string) => Promise<{ token: string }>;
-  updateUserPlan: (newPlan: 'FREE' | 'PAID') => Promise<void>;
+interface AuthContextData extends AuthState {
+  signIn: (email: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  register: (email: string, password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
+export function AuthProvider({ children }: { children: React.ReactNode }): JSX.Element {
+  const { supabase } = useSupabase();
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    isLoading: true,
+  });
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  useEffect(() => {
+    // Carregar sessão inicial
+    const loadSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setState(prevState => ({
+          ...prevState,
+          user: session?.user ?? null,
+          isLoading: false,
+        }));
+      } catch (error) {
+        console.error('Erro ao carregar sessão:', error);
+        setState(prevState => ({
+          ...prevState,
+          isLoading: false,
+        }));
+      }
+    };
 
-  const login = async (email: string, password: string): Promise<{ token: string }> => {
+    loadSession();
+
+    // Configurar listener de mudança de autenticação
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setState(prevState => ({
+          ...prevState,
+          user: session?.user ?? null,
+        }));
+      }
+    );
+
+    // Cleanup
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase.auth]);
+
+  const handleAuthError = (error: AuthError) => {
+    const errorMessage = error.message || 'Ocorreu um erro durante a autenticação';
+    Alert.alert('Erro', errorMessage);
+  };
+
+  const signIn = async (email: string, password: string): Promise<void> => {
     try {
-      const response = await api.post('/auth/login', { email, password });
-      const { token, user } = response.data;
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       
-      await AsyncStorage.setItem('token', token);
-      setUser(user);
-      
-      return { token };
+      if (error) throw error;
     } catch (error) {
+      handleAuthError(error as AuthError);
       throw error;
     }
   };
 
-  const register = async (email: string, password: string): Promise<{ token: string }> => {
+  const signOut = async (): Promise<void> => {
     try {
-      const response = await api.post('/auth/register', { email, password });
-      const { token, user } = response.data;
-      
-      await AsyncStorage.setItem('token', token);
-      setUser(user);
-      
-      return { token };
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
     } catch (error) {
+      handleAuthError(error as AuthError);
       throw error;
     }
   };
 
-  const logout = async () => {
-    await AsyncStorage.removeItem('token');
-    setUser(null);
+  const register = async (email: string, password: string): Promise<void> => {
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+    } catch (error) {
+      handleAuthError(error as AuthError);
+      throw error;
+    }
   };
 
-  const updateUserPlan = async (newPlan: 'FREE' | 'PAID') => {
-    if (user) {
-      const updatedUser = { ...user, plan: newPlan };
-      setUser(updatedUser);
-      // Aqui você deve implementar a lógica para atualizar o plano no backend
-      // await api.post('/user/update-plan', { plan: newPlan });
-    }
+  const value = {
+    ...state,
+    signIn,
+    signOut,
+    register,
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, register, updateUserPlan }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export const useAuth = () => useContext(AuthContext);
+export function useAuth(): AuthContextData {
+  const context = useContext(AuthContext);
+  
+  if (!context) {
+    throw new Error('useAuth deve ser usado dentro de um AuthProvider');
+  }
+  
+  return context;
+}
